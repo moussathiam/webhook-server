@@ -1,98 +1,38 @@
+@@ -0,0 +1,37 @@
+// Import Express.js
 const express = require('express');
 
+// Create an Express app
 const app = express();
+
+// Middleware to parse JSON bodies
 app.use(express.json());
 
+// Set port and verify_token
 const port = process.env.PORT || 3000;
 const verifyToken = process.env.VERIFY_TOKEN;
 
-/**
- * Route de vérification du webhook par Meta
- */
+// Route for GET requests
 app.get('/', (req, res) => {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
-
-  if (!verifyToken) {
-    console.error('La variable VERIFY_TOKEN est absente.');
-    return res.sendStatus(500);
-  }
+  const { 'hub.mode': mode, 'hub.challenge': challenge, 'hub.verify_token': token } = req.query;
 
   if (mode === 'subscribe' && token === verifyToken) {
     console.log('WEBHOOK VERIFIED');
-    return res.status(200).send(challenge);
+    res.status(200).send(challenge);
+  } else {
+    res.status(403).end();
   }
-
-  console.error('Échec de vérification du webhook.');
-  return res.sendStatus(403);
 });
 
-/**
- * Réception des événements WhatsApp
- */
+// Route for POST requests
 app.post('/', (req, res) => {
-  // Répondre rapidement à Meta
-  res.sendStatus(200);
-
-  try {
-    const body = req.body;
-
-    console.log(
-      `Webhook reçu le ${new Date().toISOString()}`,
-      JSON.stringify(body, null, 2)
-    );
-
-    if (body.object !== 'whatsapp_business_account') {
-      console.log('Événement ignoré : objet non reconnu.');
-      return;
-    }
-
-    const changes = body.entry?.[0]?.changes?.[0];
-    const value = changes?.value;
-
-    // Message reçu d’un utilisateur
-    const message = value?.messages?.[0];
-
-    if (message) {
-      const senderPhone = message.from;
-      const messageType = message.type;
-
-      console.log('Nouveau message WhatsApp :');
-      console.log('Expéditeur :', senderPhone);
-      console.log('Type :', messageType);
-
-      if (messageType === 'text') {
-        console.log('Texte :', message.text?.body);
-      }
-
-      return;
-    }
-
-    // Changement de statut d’un message envoyé
-    const status = value?.statuses?.[0];
-
-    if (status) {
-      console.log('Mise à jour du statut :');
-      console.log('Message ID :', status.id);
-      console.log('Statut :', status.status);
-      console.log('Destinataire :', status.recipient_id);
-    }
-  } catch (error) {
-    console.error('Erreur pendant le traitement du webhook :', error);
-  }
+  const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  console.log(`\n\nWebhook received ${timestamp}\n`);
+  console.log(JSON.stringify(req.body, null, 2));
+  res.status(200).end();
 });
 
-/**
- * Route facultative de contrôle
- */
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    service: 'WhatsApp webhook',
-  });
-});
-
+// Start the server
 app.listen(port, () => {
-  console.log(`Serveur démarré sur le port ${port}`);
-});
+  console.log(`\nListening on port ${port}\n`);
+});·
